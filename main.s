@@ -6,7 +6,7 @@
 # This is a simple tic-tac-toe game with a basic AI.
 #
 # Register usage:
-# 
+#
 # ============================================================================
 
           .text
@@ -16,7 +16,7 @@ main:
 
 
 EXIT:
-          li $v0, 10
+          li        $v0, 10
           syscall
 
 
