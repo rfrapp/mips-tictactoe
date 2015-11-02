@@ -12,8 +12,8 @@
           .text
           .globl    main
 
-main:
-
+main: li $v0, 5 # get input 
+	
 
 EXIT:
           li        $v0, 10
