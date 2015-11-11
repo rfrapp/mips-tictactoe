@@ -22,30 +22,30 @@
 # Output:
 #         (void)
 PRINTLINE:
-          la $t0, BORDER0     # Load string "+-"
-          move $t1, $a0
+          la        $t0, BORDER0     # Load string "+-"
+          move      $t1, $a0
 
 # while (n > 0)
 #         print '+-'
 # print '+'
 PRINTLINE_LOOP:
-          beqz $t1, PRINTLINE_BOTTOM
+          beqz      $t1, PRINTLINE_BOTTOM
 
           # Print '+-'
-          move $a0, $t0
-          li $v0, 4
+          move      $a0, $t0
+          li        $v0, 4
           syscall
 
-          addi $t1, $t1, -1
-          j PRINTLINE_LOOP
+          addi      $t1, $t1, -1
+          j         PRINTLINE_LOOP
 
 PRINTLINE_BOTTOM:
           # Print '+'
-          la $a0, PLUS
-          li $v0, 4
+          la        $a0, PLUS
+          li        $v0, 4
           syscall
 
-          jr $ra
+          jr        $ra
 
 # Prints a Tic-Tac-Toe board of size n.
 # Input:
@@ -62,96 +62,92 @@ PRINTLINE_BOTTOM:
 #         t6 = (temporary for operations) = 2n + 1
 PRINTBOARD:
           # Save the return address.
-          addiu $sp, $sp, -4
-          sw $ra, 0($sp)
+          addiu     $sp, $sp, -4
+          sw        $ra, 0($sp)
 
-	move $t0, $a0	# t0 = rows and cols = n
-	li $t1, 0		# t1 = row = 0
-	li $t3, 0 	# t3 = i = 0
+	move      $t0, $a0	# t0 = rows and cols = n
+	li        $t1, 0		# t1 = row = 0
+	li        $t3, 0 	# t3 = i = 0
 
-          li $t6, 0
-          add $t6, $t6, $t0   # t6 = t0 = n
-          add $t6, $t6, $t0   # t6 = 2 * t0 = 2 * n
-          addiu $t6, $t6, 1
+          li        $t6, 0
+          add       $t6, $t6, $t0   # t6 = t0 = n
+          add       $t6, $t6, $t0   # t6 = 2 * t0 = 2 * n
+          addiu     $t6, $t6, 1
 
 # for (int row = 0; row < rows; row++)
 PRINTBOARD_OUTERLOOP:
-	beq $t1, $t6, PRINTBOARD_BOTTOM
-          li $t2, 0 	# t2 = col = 0
+	beq       $t1, $t6, PRINTBOARD_BOTTOM
+          li        $t2, 0 	# t2 = col = 0
 
-          li $t4, 2
-          div $t1, $t4
-          mfhi $t4
+          li        $t4, 2
+          div       $t1, $t4
+          mfhi      $t4
 
           # if (row % 2 == 1) {
-          li $t5, 1
-          beq $t4, $t5, PRINTBOARD_INNERLOOP_START
+          li        $t5, 1
+          beq       $t4, $t5, PRINTBOARD_INNERLOOP_START
           # }
 
           # else { print '+-...+-+' }
 
-          move $a0, $t0
+          move      $a0, $t0
 
           # Save t0, t1
-          addi $sp, $sp, -8
-          sw $t0, 0($sp)
-          sw $t1, 4($sp)
+          addi      $sp, $sp, -8
+          sw        $t0, 0($sp)
+          sw        $t1, 4($sp)
 
-          jal PRINTLINE
+          jal       PRINTLINE
 
           # Load t0, t1 back
-          lw $t1, 4($sp)
-          lw $t0, 0($sp)
-          addiu $sp, $sp, 8
+          lw        $t1, 4($sp)
+          lw        $t0, 0($sp)
+          addiu     $sp, $sp, 8
 
-          j PRINTBOARD_OUTERLOOP_BOTTOM
+          j         PRINTBOARD_OUTERLOOP_BOTTOM
 
 PRINTBOARD_INNERLOOP_START:
-          la $a0, PIPE     # print “|”
-	li $v0, 4
+          la        $a0, PIPE     # print “|”
+	li        $v0, 4
 	syscall
 
 # for (int col = 0; col < cols; ++col)
 PRINTBOARD_INNERLOOP:
-	beq $t2, $t0, PRINTBOARD_OUTERLOOP_BOTTOM
+	beq       $t2, $t0, PRINTBOARD_OUTERLOOP_BOTTOM
 
 	# Print board[i]
-	la $a0, BOARD
-	add $a0, $a0, $t3 	  # &board[i]
-          lb $a0, 0($a0)
-	li $v0, 11
+	la        $a0, BOARD
+	add       $a0, $a0, $t3 	  # &board[i]
+          lb        $a0, 0($a0)
+	li        $v0, 11
 	syscall
 
-	la $a0, PIPE          # print “|”
-	li $v0, 4
+	la        $a0, PIPE          # print “|”
+	li        $v0, 4
 	syscall
 
-	addiu $t3, $t3, 1 	  # ++i
-          addiu $t2, $t2, 1     # ++cols
+	addiu     $t3, $t3, 1 	  # ++i
+          addiu     $t2, $t2, 1     # ++cols
 
-          j PRINTBOARD_INNERLOOP
+          j         PRINTBOARD_INNERLOOP
 
 PRINTBOARD_OUTERLOOP_BOTTOM:
-	addiu $t1, $t1, 1		# ++row
+	addiu     $t1, $t1, 1		# ++row
 
-	la $a0, NEWLINE
-	li $v0, 4
+	la        $a0, NEWLINE
+	li        $v0, 4
 	syscall
 
-	# if (row == 2) continue;
-	# li $t4, 3
-	# beq $t1, $t4, PRINTBOARD_OUTERLOOP
-
-	j PRINTBOARD_OUTERLOOP
+	j         PRINTBOARD_OUTERLOOP
 
 # return;
 PRINTBOARD_BOTTOM:
-	li $v0, 4
+	li        $v0, 4
 	syscall
 
-          lw $ra, 0($sp)
-          addiu $sp, $sp, 4
-	jr $ra
+          lw        $ra, 0($sp)
+          addiu     $sp, $sp, 4
+	jr        $ra
 
 main:
           # get n from the user
@@ -162,8 +158,16 @@ main:
           li        $t1, 0
           mul       $t2, $s2, $s2
 
-# for (int i = 0; i < n * n; ++i)
-#         board[i] = ' ';
+# Initializes an n x n board with spaces.
+# Pseudocode:
+#         for (int i = 0; i < n * n; ++i)
+#                   board[i] = ' ';
+# Registers used:
+#         t0 = &board[0]
+#         t1 = i
+#         t2 = n * n
+#         t3 = temporary for storing bytes in the data segment
+#         t4 = &board[i]
 INITBOARD:
           beq      $t1, $t2 INITBOARD_END
 
