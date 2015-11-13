@@ -25,8 +25,10 @@ PRINTLINE:
           la        $t0, BORDER0     # Load string "+-"
           move      $t1, $a0
 
-# while (n > 0)
+# while (n > 0) {
 #         print '+-'
+# 	    n--
+# }
 # print '+'
 PRINTLINE_LOOP:
           beqz      $t1, PRINTLINE_BOTTOM
@@ -65,9 +67,9 @@ PRINTBOARD:
           addiu     $sp, $sp, -4
           sw        $ra, 0($sp)
 
-	move      $t0, $a0	# t0 = rows and cols = n
-	li        $t1, 0		# t1 = row = 0
-	li        $t3, 0 	# t3 = i = 0
+	    move      $t0, $a0		# t0 = rows and cols = n
+	    li        $t1, 0		# t1 = row = 0
+	    li        $t3, 0 		# t3 = i = 0
 
           li        $t6, 0
           add       $t6, $t6, $t0   # t6 = t0 = n
@@ -76,8 +78,8 @@ PRINTBOARD:
 
 # for (int row = 0; row < rows; row++)
 PRINTBOARD_OUTERLOOP:
-	beq       $t1, $t6, PRINTBOARD_BOTTOM
-          li        $t2, 0 	# t2 = col = 0
+	    beq       $t1, $t6, PRINTBOARD_BOTTOM
+          li        $t2, 0 		# t2 = col = 0
 
           li        $t4, 2
           div       $t1, $t4
@@ -108,48 +110,56 @@ PRINTBOARD_OUTERLOOP:
 
 PRINTBOARD_INNERLOOP_START:
           la        $a0, PIPE     # print “|”
-	li        $v0, 4
-	syscall
+	    li        $v0, 4
+	    syscall
 
 # for (int col = 0; col < cols; ++col)
 PRINTBOARD_INNERLOOP:
-	beq       $t2, $t0, PRINTBOARD_OUTERLOOP_BOTTOM
+	    beq       $t2, $t0, PRINTBOARD_OUTERLOOP_BOTTOM
 
-	# Print board[i]
-	la        $a0, BOARD
-	add       $a0, $a0, $t3 	  # &board[i]
+	    # Print board[i]
+	    la        $a0, BOARD
+	    add       $a0, $a0, $t3 	  # &board[i]
           lb        $a0, 0($a0)
-	li        $v0, 11
-	syscall
+	    li        $v0, 11
+	    syscall
 
-	la        $a0, PIPE          # print “|”
-	li        $v0, 4
-	syscall
+	    la        $a0, PIPE          # print “|”
+	    li        $v0, 4
+	    syscall
 
-	addiu     $t3, $t3, 1 	  # ++i
+	    addiu     $t3, $t3, 1 	  # ++i
           addiu     $t2, $t2, 1     # ++cols
 
           j         PRINTBOARD_INNERLOOP
 
 PRINTBOARD_OUTERLOOP_BOTTOM:
-	addiu     $t1, $t1, 1		# ++row
+	    addiu     $t1, $t1, 1		# ++row
 
-	la        $a0, NEWLINE
-	li        $v0, 4
-	syscall
+	    la        $a0, NEWLINE
+	    li        $v0, 4
+	    syscall
 
-	j         PRINTBOARD_OUTERLOOP
+	    j         PRINTBOARD_OUTERLOOP
 
 # return;
 PRINTBOARD_BOTTOM:
-	li        $v0, 4
-	syscall
+	    li        $v0, 4
+	    syscall
 
           lw        $ra, 0($sp)
           addiu     $sp, $sp, 4
-	jr        $ra
+	    jr        $ra
 
 main:
+	    li $v0, 4
+	    la $a0, GREETING
+	    syscall
+
+	    li $v0, 4
+	    la $a0, ENTERn
+	    syscall
+
           # get n from the user
           li        $v0, 5
           syscall
@@ -172,7 +182,7 @@ INITBOARD:
           beq      $t1, $t2 INITBOARD_END
 
           # Load the ASCII char for space.
-          li        $t3, 32
+          li        $t3, ' '
 
           # Get the address of board[i].
           add       $t4, $t0, $t1
@@ -190,31 +200,70 @@ INITBOARD_END:
           sb        $t3, 0($t4)         # board[n] = ' '
 
 GAMELOOP:
+
           # Print n x n board.
           move      $a0, $s2
-	jal       PRINTBOARD
+	    jal       PRINTBOARD
 
           li        $v0, 4
           la        $a0, INPUTROW
           syscall
 
           li        $v0, 5 #get row selection from user
-	syscall
-	move      $s0, $v0
+	    syscall
+	    move      $s0, $v0
 
-	li        $v0, 4
+	    li        $v0, 4
           la        $a0, INPUTCOLUMN
           syscall
 
-	li        $v0, 5 # get column selection from user
-	syscall
-	move      $s1, $v0
+	    li        $v0, 5 # get column selection from user
+	    syscall
+	    move      $s1, $v0
 
-	j         GAMELOOP
+# if (row < 0 || row >= n) goto INVALID_MOVE
+VALIDATE_ROW:
+	    bltz $s0, INVALID_MOVE
+	    move $t0, $s2
+	    bge $s0, $t0, INVALID_MOVE
+
+# if (col < 0 || col >= n) goto INVALID_MOVE
+VALIDATE_COL:
+	    bltz $s1, INVALID_MOVE
+	    move $t0, $s2
+	    bge $s1, $t0, INVALID_MOVE
+
+# For 2-D array:
+# if (board[row][col] != ' ')
+#           goto INVALID_MOVE
+# For 1-D array:
+#           index = row * n + col
+#           if board[index] != ' ')
+#                     goto INVALID_MOVE
+VALIDATE_ROWCOL:
+	    # Get index in array of row in s0 and col in s1
+	    mul $t0, $s0, $s2
+	    add $t0, $t0, $s1
+
+          la        $t1, BOARD         # t1 = board[0]
+          addu     $t1, $t1, $t0      # t1 = board[0] + i
+	    lb        $t1, 0($t1)        # t1 = *(board[0] + i)
+	    li        $t2, ' '
+          bne      $t1, $t2, INVALID_MOVE
+	    j         VALID_MOVE
+
+INVALID_MOVE:
+          li        $v0, 4
+    la        $a0, INVALIDMOVESTR
+    syscall
+VALID_MOVE:
+
+GAMELOOP_BOTTOM:
+	    j         GAMELOOP
 
 EXIT:
-	li    	$v0, 10
-	syscall
+	    li    	  $v0, 10
+	    syscall
 
 # +-+-+-+
 # | | | |
@@ -225,11 +274,14 @@ EXIT:
 # +-+-+-+
 
           .data
-INPUTROW: 	.asciiz "Enter row: "
+INPUTROW: 	      .asciiz "Enter row: "
 INPUTCOLUMN: 	.asciiz "Enter column: "
-PIPE:		.asciiz "|"
-PLUS:               .asciiz "+"
+INVALIDMOVESTR:   .asciiz "Invalid move. Please try again.\n"
+PIPE:		      .asciiz "|"
+PLUS:             .asciiz "+"
 NEWLINE:		.asciiz "\n"
-BORDER0:            .asciiz "+-"
+BORDER0:          .asciiz "+-"
+GREETING:		.asciiz "Let's play a game of Tic-Tac-Toe.\n"
+ENTERn:		.asciiz "Enter n: "
 
 BOARD:		.byte 0
