@@ -154,12 +154,45 @@ PRINTBOARD_BOTTOM:
           addiu     $sp, $sp, 4
 	jr        $ra
 
+# Regiser Usage:
+# t0 = i = 0 (loop counter)
+# t1 = n * n = size of the board (in a 1-D array)
+# t2 = &board[0] + i
+# s3 = n
 AISTURN:
-	addiu     $s3, $s3, 1
-          la        $a0, NEWLINE
-          li        $v0, 4
-          syscall
-	j         GAMELOOP
+	# addiu     $s3, $s3, 1
+          # la        $a0, NEWLINE
+          # li        $v0, 4
+          # syscall
+
+AISTURN_PICKFIRST:
+	li 	  $t0, 0 		# i = 0
+	mul 	  $t1, $s3, $s3   # t1 = n * n
+
+
+AISTURN_PICKFIRST_LOOP:
+    la $t2, BOARD
+	add $t2, $t2, $t0
+    lb $t2, 0($t2)
+    li $t3, ' '
+	beq $t2, $t3, AISTURN_MAKE_MOVE
+
+	addiu 	$t0, $t0, 1 	# ++i
+	j AISTURN_PICKFIRST_LOOP
+
+# Prereq: t0 = the index to put an 'O'
+AISTURN_MAKE_MOVE:
+	la $t2, BOARD
+	add $t2, $t2, $t0
+	li $t3, 'O'
+	sb $t3, 0($t2)
+	addiu $s3, $s3, 1
+
+	la $a0, NEWLINE
+	li $v0, 4
+	syscall
+
+	j         GAMELOOP_BOTTOM
 main:
 	li        $s3, 1
 
@@ -185,7 +218,7 @@ main:
 #                   board[i] = ' ';
 # Registers used:
 #         t0 = &board[0]
-#         t1 = i
+#         t1 = i = 0
 #         t2 = n * n
 #         t3 = temporary for storing bytes in the data segment
 #         t4 = &board[i]
@@ -202,7 +235,7 @@ INITBOARD:
           sb        $t3, 0($t4)
 
           addiu     $t1, $t1, 1         # ++i
-          j INITBOARD
+          j         INITBOARD
 
 # Add a null terminator to the board string.
 INITBOARD_END:
@@ -233,7 +266,7 @@ INITBOARD_END:
           la 	$t1, BOARD
           add       $t0, $t0, $t1
 
-          li        $t2, '0'
+          li        $t2, 'O'
           sb        $t2, 0($t0)
           # ==============================================================
 
@@ -300,6 +333,7 @@ INVALID_MOVE:
           la        $a0, INVALIDMOVESTR
           syscall
           j         GAMELOOP_BOTTOM
+
 VALID_MOVE:
           mul       $t0, $s0, $s2
           add       $t0, $t0, $s1
@@ -308,9 +342,44 @@ VALID_MOVE:
           li        $t2, 'X'
           sb        $t2, 0($t1)
 
-          addiu     $s3, $s3, 1 		# turncount++
+          addiu     $s3, $s3, 1         # turncount++
 GAMELOOP_BOTTOM:
-          j         GAMELOOP
+          li        $t0, 0              # i = 0
+          mul       $t1, $s2, $s2       # t1 = n * n
+
+# for (int i = 0; i < n * n; ++i)
+#   if (board[i] == ' ')
+#     gameover = false;
+# gameover = true;
+# print game over message.
+GAMEOVERLOOP:
+          beq       $t0, $t1, GAME_OVER_BOTTOM
+
+          la        $t2, BOARD
+          add       $t2, $t2, $t0
+          lb        $t2, 0($t2)
+          li        $t3, ' '
+          beq       $t2, $t3, GAMELOOP
+          addiu     $t0, $t0, 1
+
+          j         GAMEOVERLOOP
+
+GAME_OVER_BOTTOM:
+          # Print the board.
+          move      $a0, $s2
+          jal       PRINTBOARD
+
+          la        $a0, NEWLINE
+          li        $v0, 4
+          syscall
+
+          la        $a0, GAMEOVERMSG
+          li        $v0, 4
+          syscall
+
+          la        $a0, NEWLINE
+          li        $v0, 4
+          syscall
 
 EXIT:
           li    	$v0, 10
@@ -335,4 +404,5 @@ BORDER0:            .asciiz "+-"
 GREETING:           .asciiz "Let's play a game of Tic-Tac-Toe.\n"
 ENTERn:             .asciiz "Enter n: "
 FIRST:              .asciiz "I'll go first.\n"
+GAMEOVERMSG:        .asciiz "The game is over. Go away."
 BOARD:              .byte 0
