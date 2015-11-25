@@ -147,12 +147,12 @@ PRINTBOARD_OUTERLOOP_BOTTOM:
 
 # return;
 PRINTBOARD_BOTTOM:
-	li        $v0, 4
-	syscall
+          li        $v0, 4
+          syscall
 
           lw        $ra, 0($sp)
           addiu     $sp, $sp, 4
-	jr        $ra
+          jr        $ra
 
 # Regiser Usage:
 # t0 = i = 0 (loop counter)
@@ -160,25 +160,21 @@ PRINTBOARD_BOTTOM:
 # t2 = &board[0] + i
 # s3 = n
 AISTURN:
-	# addiu     $s3, $s3, 1
-          # la        $a0, NEWLINE
-          # li        $v0, 4
-          # syscall
 
 AISTURN_PICKFIRST:
-	li 	  $t0, 0 		# i = 0
-	mul 	  $t1, $s3, $s3   # t1 = n * n
+          li 	  $t0, 0 		# i = 0
+          mul 	  $t1, $s3, $s3   # t1 = n * n
 
 
 AISTURN_PICKFIRST_LOOP:
-    la $t2, BOARD
-	add $t2, $t2, $t0
-    lb $t2, 0($t2)
-    li $t3, ' '
-	beq $t2, $t3, AISTURN_MAKE_MOVE
+          la $t2, BOARD
+          add $t2, $t2, $t0
+          lb $t2, 0($t2)
+          li $t3, ' '
+          beq $t2, $t3, AISTURN_MAKE_MOVE
 
-	addiu 	$t0, $t0, 1 	# ++i
-	j AISTURN_PICKFIRST_LOOP
+          addiu 	$t0, $t0, 1 	# ++i
+          j AISTURN_PICKFIRST_LOOP
 
 # Prereq: t0 = the index to put an 'O'
 AISTURN_MAKE_MOVE:
