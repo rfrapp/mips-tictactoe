@@ -406,8 +406,7 @@ AISTURN_WINNINGMOVE_DIAGLEFT_LOOP_BOTTOM:
           j         AISTURN_WINNINGMOVE_DIAGLEFT_LOOP
 
 AISTURN_WINNINGMOVE_DIAGLEFT_CHECK:
-          move      $t6, $s2
-          addi      $t6, $t6, -1
+          addi      $t6, $s2, -1
 
           seq       $t7, $t2, $t6       # t7 = (numos == n - 1)
 
@@ -419,7 +418,7 @@ AISTURN_WINNINGMOVE_DIAGLEFT_CHECK:
           li        $t6, 1
           beq       $t7, $t6, AISTURN_WINNINGMOVE_DIAGLEFT_LOOP_EXIT
 
-          j         AISTURN_PICKFIRST
+          j         AISTURN_WINNINGMOVE_DIAGRIGHT
 
 AISTURN_WINNINGMOVE_DIAGLEFT_LOOP_IF:
           addiu $t1, $t1, 1 # inc numspaces
@@ -428,6 +427,60 @@ AISTURN_WINNINGMOVE_DIAGLEFT_LOOP_IF:
           j 	AISTURN_WINNINGMOVE_DIAGLEFT_LOOP_BOTTOM
 
 AISTURN_WINNINGMOVE_DIAGLEFT_LOOP_EXIT:
+          move      $t0, $t3
+          j         AISTURN_MAKE_MOVE
+
+AISTURN_WINNINGMOVE_DIAGRIGHT:
+          li        $t0, 0              # i = 0
+          li        $t1, 0              # numspaces = 0
+          li        $t2, 0              # numos = 0
+          li        $t3, 0              # index = 0
+          addi      $t9, $s2, -1        # j = n - 1
+
+AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP:
+          beq       $t0, $s2, AISTURN_WINNINGMOVE_DIAGRIGHT_CHECK
+
+          la        $t4, BOARD          # load address of board
+          add       $t5, $t9, $t4
+          lb        $t4, 0($t5)
+
+          # Count an O if it is seen.
+          li        $t6, 'O'
+          seq       $t7, $t4, $t6
+          addu      $t2, $t2, $t7
+
+          li        $t6, ' '
+          beq       $t4, $t6, AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_IF
+
+AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_BOTTOM:
+          addiu     $t0, $t0, 1 	# ++i
+          add       $t9, $t9, $s2       # j += n - 1
+          addi      $t9, $t9, -1
+          j         AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP
+
+AISTURN_WINNINGMOVE_DIAGRIGHT_CHECK:
+          move      $t6, $s2
+          addi      $t6, $t6, -1
+
+          seq       $t7, $t2, $t6       # t7 = (numos == n - 1)
+
+          li        $t6, 1
+          seq       $t8, $t1, $t6       # t8 = (numspaces == 1)
+
+          and       $t7, $t7, $t8       # t7 = ((numos == n - 1) && (numspaces == 1))
+
+          li        $t6, 1
+          beq       $t7, $t6, AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_EXIT
+
+          j         AISTURN_PICKFIRST
+
+AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_IF:
+          addiu $t1, $t1, 1 # inc numspaces
+          move  $t3, $t9    # index = j
+
+          j 	AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_BOTTOM
+
+AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_EXIT:
           move      $t0, $t3
           j         AISTURN_MAKE_MOVE
 
