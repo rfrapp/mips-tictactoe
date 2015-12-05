@@ -156,7 +156,9 @@ PRINTBOARD_BOTTOM:
 
 AISTURN:
 
-#=================================================================================================
+#===============================================================================================
+#===============================================================================================
+
 # Check to see if there is a winning move for the AI
 # across rows, i.e.
 #
@@ -264,10 +266,20 @@ AISTURN_WINNINGMOVE_CHECKROWS_OUTERLOOP_EXIT:
           # li        $v0, 4
           # la        $a0, AIWINNER
           # syscall
+          la        $t2, BOARD
+          add       $t2, $t2, $t0
+          li        $t3, 'O'
+          sb        $t3, 0($t2)
+          addiu     $s3, $s3, 1
 
-          j         AISTURN_MAKE_MOVE
+          la        $a0, NEWLINE
+          li        $v0, 4
+          syscall
 
-#=========================================================================FAIZAL CHECK COL==============
+          j         AI_WIN
+          # j         AISTURN_MAKE_MOVE
+
+#=========================================================================FAIZAL CHECK #COL==============
 # Check to see if there is a winning move for the AI
 # down columns i.e.
 #
@@ -324,7 +336,7 @@ AISTURN_WINNINGMOVE_CHECKCOL_INNERLOOP:
 
           # if (board[i * n + j] == ' ')
           #   ++numspaces;
-          mul       $t5, $t1, $s2       # t5 = j * n               =======================================================hernow
+          mul       $t5, $t1, $s2       # t5 = j * n
           add       $t5, $t5, $t0       # t5 = j * n + i
           move      $t8, $t5            # t8 = t5
           la        $t6, BOARD
@@ -375,8 +387,17 @@ AISTURN_WINNINGMOVE_CHECKCOL_OUTERLOOP_EXIT:
           # li        $v0, 4
           # la        $a0, AIWINNER
           # syscall
+          la        $t2, BOARD
+          add       $t2, $t2, $t0
+          li        $t3, 'O'
+          sb        $t3, 0($t2)
+          addiu     $s3, $s3, 1
 
-          j         AISTURN_MAKE_MOVE
+          la        $a0, NEWLINE
+          li        $v0, 4
+          syscall
+          j         AI_WIN
+          # j         AISTURN_MAKE_MOVE
 
 AISTURN_WINNINGMOVE_DIAGLEFT:
           li        $t0, 0    # i = 0
@@ -428,7 +449,19 @@ AISTURN_WINNINGMOVE_DIAGLEFT_LOOP_IF:
 
 AISTURN_WINNINGMOVE_DIAGLEFT_LOOP_EXIT:
           move      $t0, $t3
-          j         AISTURN_MAKE_MOVE
+          # j         AISTURN_MAKE_MOVE
+
+          la        $t2, BOARD
+          add       $t2, $t2, $t0
+          li        $t3, 'O'
+          sb        $t3, 0($t2)
+          addiu     $s3, $s3, 1
+
+          la        $a0, NEWLINE
+          li        $v0, 4
+          syscall
+
+          j         AI_WIN
 
 AISTURN_WINNINGMOVE_DIAGRIGHT:
           li        $t0, 0              # i = 0
@@ -472,7 +505,7 @@ AISTURN_WINNINGMOVE_DIAGRIGHT_CHECK:
           li        $t6, 1
           beq       $t7, $t6, AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_EXIT
 
-          j         AISTURN_PICKFIRST
+          j         AI_BLOCK_MOVE
 
 AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_IF:
           addiu $t1, $t1, 1 # inc numspaces
@@ -482,11 +515,358 @@ AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_IF:
 
 AISTURN_WINNINGMOVE_DIAGRIGHT_LOOP_EXIT:
           move      $t0, $t3
+          # j         AISTURN_MAKE_MOVE
+          la        $t2, BOARD
+          add       $t2, $t2, $t0
+          li        $t3, 'O'
+          sb        $t3, 0($t2)
+          addiu     $s3, $s3, 1
+
+          la        $a0, NEWLINE
+          li        $v0, 4
+          syscall
+
+          j         AI_WIN
+
+#===============================================================================================
+#===============================================================================================
+#===============================================================================================
+
+AI_BLOCK_MOVE:
+
+# Check to see if there is a winning move for the AI
+# across rows, i.e.
+#
+#   +--+--+--+
+#   |->|->|->|
+# v +--+--+--+
+#   |->|->|->|
+# v +--+--+--+
+#   |->|->|->|
+#   +--+--+--+
+#
+# Register Usage:
+#         t0 = i = 0
+#         t1 = j = 0
+#         t2 = numspaces = 0
+#         t3 = numos = 0
+#         t4 = index = -1
+#         t5 = (temporary)
+#         t6 = (temporary)
+#         t7 = (temporary)
+#         t8 = (temporary)
+# Pseudocode:
+#
+# numspaces = 0
+# numos = 0
+# index = -1
+# for (int i = 0; i < n; ++i) {
+#   for (int j = 0; j < n; ++j) {
+#     if (board[i * n + j] == 'X')
+#       numos++;
+#     if (board[i * n + j] == ' ') {
+#       numspaces++;
+#       index = i * n + j;
+#     }
+#   }
+#   if (numspaces == 1 && numos == n - 1) {
+#     board[index] = 'O';
+#     break;
+#   }
+# }
+AISTURN_BLOCK_CHECKROWS:
+          li        $t0, 0              # i = 0
+          li        $t1, 0              # j = 0
+
+AISTURN_BLOCK_CHECKROWS_OUTERLOOP:
+          beq       $t0, $s2, AISTURN_BLOCK_CHECKCOL  # No winning move found.
+          li        $t1, 0                                  # j = 0
+          li        $t2, 0                                  # numspaces = 0
+          li        $t3, 0                                  # numos = 0
+          li        $t4, -1
+
+AISTURN_BLOCK_CHECKROWS_INNERLOOP:
+          beq       $t1, $s2, AISTURN_BLOCK_CHECKROWS_OUTERLOOP_BOTTOM
+
+          # if (board[i * n + j] == ' ')
+          #   ++numspaces;
+          mul       $t5, $t0, $s2       # t5 = i * n
+          add       $t5, $t5, $t1       # t5 = i * n + j
+          move      $t8, $t5            # t8 = t5
+          la        $t6, BOARD
+          addu      $t6, $t6, $t5
+          lb        $t5, 0($t6)         # t5 = board[i * n + j]
+
+          li        $t6, ' '
+          beq       $t5, $t6, AISTURN_BLOCK_CHECKROWS_INNERLOOP_IF
+
+          j         AISTURN_BLOCK_CHECKROWS_INNERLOOP_BOTTOM
+
+AISTURN_BLOCK_CHECKROWS_INNERLOOP_IF:
+          addiu     $t2, $t2, 1         # ++numspaces
+          move      $t4, $t8            # index = i * n + j
+
+AISTURN_BLOCK_CHECKROWS_INNERLOOP_BOTTOM:
+          # if (board[i * n + j] == 'O')
+          #   ++numspaces;
+          li        $t6, 'X' #$$$$$$$$$$
+          seq       $t6, $t5, $t6       # t6 = (board[i * n + j] == ' ')
+          addu      $t3, $t3, $t6       # numos += t6
+
+          addiu     $t1, $t1, 1         # ++j
+
+          j AISTURN_BLOCK_CHECKROWS_INNERLOOP
+
+AISTURN_BLOCK_CHECKROWS_OUTERLOOP_BOTTOM:
+          # if (numspaces == 1 && numos == n - 1)
+          #   board[index] = 'O'
+          li        $t5, 1
+          seq       $t6, $t2, $t5       # t6 = (numspaces == 1)
+          move      $t5, $s2
+          addiu     $t5, $t5, -1        # t5 = n - 1
+          seq       $t7, $t3, $t5       # t7 = (numos == n - 1)
+
+          and       $t6, $t6, $t7       # t6 = t6 && t7
+
+          li        $t5, 1
+          beq       $t6, $t5, AISTURN_BLOCK_CHECKROWS_OUTERLOOP_EXIT
+
+          addiu     $t0, $t0, 1         # ++i
+
+          j AISTURN_BLOCK_CHECKROWS_OUTERLOOP
+
+AISTURN_BLOCK_CHECKROWS_OUTERLOOP_EXIT:
+          move      $t0, $t4
+
+          # li        $v0, 4
+          # la        $a0, AIWINNER
+          # syscall
+
+          j         AISTURN_MAKE_MOVE
+
+#CHECKCOL===============================================================================
+#=======================================================================================
+# Check to see if there is a winning move for the AI
+# down columns i.e.
+#
+#   +--+--+--+
+#   |v |v | v|
+# v +--+--+--+
+#   |v |v | v|
+# v +--+--+--+
+#   |v |v | v|
+#   +--+--+--+
+#
+# Register Usage:
+#         t0 = i = 0
+#         t1 = j = 0
+#         t2 = numspaces = 0
+#         t3 = numos = 0
+#         t4 = index = -1
+#         t5 = (temporary)
+#         t6 = (temporary)
+#         t7 = (temporary)
+#         t8 = (temporary)
+# Pseudocode:
+#
+# numspaces = 0
+# numos = 0
+# index = -1
+# for (int i = 0; i < n; ++i) {
+#   for (int j = 0; j < n; ++j) {
+#     if (board[j * n + i] == 'X')
+#       numos++;
+#     if (board[j * n + i] == ' ') {
+#       numspaces++;
+#       index = i * n + i;
+#     }
+#   }
+#   if (numspaces == 1 && numos == n - 1) {
+#     board[index] = 'O';
+#     break;
+#   }
+# }
+AISTURN_BLOCK_CHECKCOL:
+          li        $t0, 0              # i = 0
+          li        $t1, 0              # j = 0
+
+AISTURN_BLOCK_CHECKCOL_OUTERLOOP:
+          beq       $t0, $s2, AISTURN_BLOCK_DIAGLEFT  # No winning move found.
+          li        $t1, 0                                  # j = 0
+          li        $t2, 0                                  # numspaces = 0
+          li        $t3, 0                                  # numos = 0
+          li        $t4, -1
+
+AISTURN_BLOCK_CHECKCOL_INNERLOOP:
+          beq       $t1, $s2, AISTURN_BLOCK_CHECKCOL_OUTERLOOP_BOTTOM
+
+          # if (board[i * n + j] == ' ')
+          #   ++numspaces;
+          mul       $t5, $t1, $s2       # t5 = j * n
+          add       $t5, $t5, $t0       # t5 = j * n + i
+          move      $t8, $t5            # t8 = t5
+          la        $t6, BOARD
+          addu      $t6, $t6, $t5
+          lb        $t5, 0($t6)         # t5 = board[j * n + i]
+
+          li        $t6, ' '
+          beq       $t5, $t6, AISTURN_BLOCK_CHECKCOL_INNERLOOP_IF
+
+          j         AISTURN_BLOCK_CHECKCOL_INNERLOOP_BOTTOM
+
+AISTURN_BLOCK_CHECKCOL_INNERLOOP_IF:
+          addiu     $t2, $t2, 1         # ++numspaces
+          move      $t4, $t8            # index = i * n + j
+
+AISTURN_BLOCK_CHECKCOL_INNERLOOP_BOTTOM:
+          # if (board[i * n + j] == 'O')
+          #   ++numspaces;
+          li        $t6, 'X'#$$$$$$$$$$$$$
+          seq       $t6, $t5, $t6       # t6 = (board[i * n + j] == ' ')
+          addu      $t3, $t3, $t6       # numos += t6
+
+          addiu     $t1, $t1, 1         # ++j
+
+          j AISTURN_BLOCK_CHECKCOL_INNERLOOP
+
+AISTURN_BLOCK_CHECKCOL_OUTERLOOP_BOTTOM:
+          # if (numspaces == 1 && numos == n - 1)
+          #   board[index] = 'O'
+          li        $t5, 1
+          seq       $t6, $t2, $t5       # t6 = (numspaces == 1)
+          move      $t5, $s2
+          addiu     $t5, $t5, -1        # t5 = n - 1
+          seq       $t7, $t3, $t5       # t7 = (numos == n - 1)
+
+          and       $t6, $t6, $t7       # t6 = t6 && t7
+
+          li        $t5, 1
+          beq       $t6, $t5, AISTURN_BLOCK_CHECKCOL_OUTERLOOP_EXIT
+
+          addiu     $t0, $t0, 1         # ++i
+
+          j AISTURN_BLOCK_CHECKCOL_OUTERLOOP
+
+AISTURN_BLOCK_CHECKCOL_OUTERLOOP_EXIT:
+          move      $t0, $t4
+
+          # li        $v0, 4
+          # la        $a0, AIWINNER
+          # syscall
+
+          j         AISTURN_MAKE_MOVE
+
+AISTURN_BLOCK_DIAGLEFT:
+          li        $t0, 0    # i = 0
+          li        $t1, 0    # numspaces = 0
+          li        $t2, 0    # numos = 0
+          li        $t3, 0    # index = 0
+
+AISTURN_BLOCK_DIAGLEFT_LOOP:
+          beq       $t0, $s2, AISTURN_BLOCK_DIAGLEFT_CHECK
+
+          la        $t4, BOARD          # load address of board
+          mul       $t5, $t0, $s2
+          add       $t5, $t5, $t0
+          add       $t8, $t5, $t4
+          lb        $t4, 0($t8)
+
+          # Count an X if it is seen.
+          li        $t6, 'X'
+          seq       $t7, $t4, $t6
+          addu      $t2, $t2, $t7
+
+          li        $t6, ' '
+          beq       $t4, $t6, AISTURN_BLOCK_DIAGLEFT_LOOP_IF
+
+AISTURN_BLOCK_DIAGLEFT_LOOP_BOTTOM:
+          addiu     $t0, $t0, 1 	# ++i
+          j         AISTURN_BLOCK_DIAGLEFT_LOOP
+
+AISTURN_BLOCK_DIAGLEFT_CHECK:
+          addi      $t6, $s2, -1
+
+          seq       $t7, $t2, $t6       # t7 = (numos == n - 1)
+
+          li        $t6, 1
+          seq       $t8, $t1, $t6       # t8 = (numspaces == 1)
+
+          and       $t7, $t7, $t8       # t7 = ((numos == n - 1) && (numspaces == 1))
+
+          li        $t6, 1
+          beq       $t7, $t6, AISTURN_BLOCK_DIAGLEFT_LOOP_EXIT
+
+          j         AISTURN_BLOCK_DIAGRIGHT
+
+AISTURN_BLOCK_DIAGLEFT_LOOP_IF:
+          addiu $t1, $t1, 1 # inc numspaces
+          move  $t3, $t5    # index = i * n + i
+
+          j 	AISTURN_BLOCK_DIAGLEFT_LOOP_BOTTOM
+
+AISTURN_BLOCK_DIAGLEFT_LOOP_EXIT:
+          move      $t0, $t3
+          j         AISTURN_MAKE_MOVE
+
+AISTURN_BLOCK_DIAGRIGHT:
+          li        $t0, 0              # i = 0
+          li        $t1, 0              # numspaces = 0
+          li        $t2, 0              # numos = 0
+          li        $t3, 0              # index = 0
+          addi      $t9, $s2, -1        # j = n - 1
+
+AISTURN_BLOCK_DIAGRIGHT_LOOP:
+          beq       $t0, $s2, AISTURN_BLOCK_DIAGRIGHT_CHECK
+
+          la        $t4, BOARD          # load address of board
+          add       $t5, $t9, $t4
+          lb        $t4, 0($t5)
+
+          # Count an X if it is seen.
+          li        $t6, 'X'
+          seq       $t7, $t4, $t6
+          addu      $t2, $t2, $t7
+
+          li        $t6, ' '
+          beq       $t4, $t6, AISTURN_BLOCK_DIAGRIGHT_LOOP_IF
+
+AISTURN_BLOCK_DIAGRIGHT_LOOP_BOTTOM:
+          addiu     $t0, $t0, 1 	# ++i
+          add       $t9, $t9, $s2       # j += n - 1
+          addi      $t9, $t9, -1
+          j         AISTURN_BLOCK_DIAGRIGHT_LOOP
+
+AISTURN_BLOCK_DIAGRIGHT_CHECK:
+          move      $t6, $s2
+          addi      $t6, $t6, -1
+
+          seq       $t7, $t2, $t6       # t7 = (numos == n - 1)
+
+          li        $t6, 1
+          seq       $t8, $t1, $t6       # t8 = (numspaces == 1)
+
+          and       $t7, $t7, $t8       # t7 = ((numos == n - 1) && (numspaces == 1))
+
+          li        $t6, 1
+          beq       $t7, $t6, AISTURN_BLOCK_DIAGRIGHT_LOOP_EXIT
+
+          j         AISTURN_PICKFIRST
+
+AISTURN_BLOCK_DIAGRIGHT_LOOP_IF:
+          addiu $t1, $t1, 1 # inc numspaces
+          move  $t3, $t9    # index = j
+
+          j 	AISTURN_BLOCK_DIAGRIGHT_LOOP_BOTTOM
+
+AISTURN_BLOCK_DIAGRIGHT_LOOP_EXIT:
+          move      $t0, $t3
           j         AISTURN_MAKE_MOVE
 
 
-#==================================================================RYAN's CHECK ROW===============
 
+#==============================================================================================
+#===============================================================================================
+#===============================================================================================
 # This label will only be executed if the AI cannot block the player
 # from winning and it cannot make a winning move of its own.
 #
@@ -681,6 +1061,356 @@ GAMELOOP_BOTTOM:
           li        $t0, 0              # i = 0
           mul       $t1, $s2, $s2       # t1 = n * n
 
+#===============================================================================================
+#===============================================================================================
+#===============================================================================================
+
+CHICKEN_DINNER:
+
+# Check to see if there is a winning move for the AI
+# across rows, i.e.
+#
+#   +--+--+--+
+#   |->|->|->|
+# v +--+--+--+
+#   |->|->|->|
+# v +--+--+--+
+#   |->|->|->|
+#   +--+--+--+
+#
+# Register Usage:
+#         t0 = i = 0
+#         t1 = j = 0
+#         t2 = numspaces = 0
+#         t3 = numos = 0
+#         t4 = index = -1
+#         t5 = (temporary)
+#         t6 = (temporary)
+#         t7 = (temporary)
+#         t8 = (temporary)
+# Pseudocode:
+#
+# numspaces = 0
+# numos = 0
+# index = -1
+# for (int i = 0; i < n; ++i) {
+#   for (int j = 0; j < n; ++j) {
+#     if (board[i * n + j] == 'X')
+#       numos++;
+#     if (board[i * n + j] == ' ') {
+#       numspaces++;
+#       index = i * n + j;
+#     }
+#   }
+#   if (numspaces == 1 && numos == n - 1) {
+#     board[index] = 'O';
+#     break;
+#   }
+# }
+CHICKEN_DINNER_CHECKROWS:
+          li        $t0, 0              # i = 0
+          li        $t1, 0              # j = 0
+
+CHICKEN_DINNER_CHECKROWS_OUTERLOOP:
+          beq       $t0, $s2, CHICKEN_DINNER_CHECKCOL  # No winning move found.
+          li        $t1, 0                                  # j = 0
+          li        $t2, 0                                  # numspaces = 0
+          li        $t3, 0                                  # numos = 0
+          li        $t4, -1
+
+CHICKEN_DINNER_CHECKROWS_INNERLOOP:
+          beq       $t1, $s2, CHICKEN_DINNER_CHECKROWS_OUTERLOOP_BOTTOM
+
+          # if (board[i * n + j] == ' ')
+          #   ++numspaces;
+          mul       $t5, $t0, $s2       # t5 = i * n
+          add       $t5, $t5, $t1       # t5 = i * n + j
+          move      $t8, $t5            # t8 = t5
+          la        $t6, BOARD
+          addu      $t6, $t6, $t5
+          lb        $t5, 0($t6)         # t5 = board[i * n + j]
+
+          li        $t6, ' '
+          beq       $t5, $t6, CHICKEN_DINNER_CHECKROWS_INNERLOOP_IF
+
+          j         CHICKEN_DINNER_CHECKROWS_INNERLOOP_BOTTOM
+
+CHICKEN_DINNER_CHECKROWS_INNERLOOP_IF:
+          addiu     $t2, $t2, 1         # ++numspaces
+          move      $t4, $t8            # index = i * n + j
+
+CHICKEN_DINNER_CHECKROWS_INNERLOOP_BOTTOM:
+          # if (board[i * n + j] == 'O')
+          #   ++numspaces;
+          li        $t6, 'X' #$$$$$$$$$$
+          seq       $t6, $t5, $t6       # t6 = (board[i * n + j] == ' ')
+          addu      $t3, $t3, $t6       # numos += t6
+
+          addiu     $t1, $t1, 1         # ++j
+
+          j CHICKEN_DINNER_CHECKROWS_INNERLOOP
+
+CHICKEN_DINNER_CHECKROWS_OUTERLOOP_BOTTOM:
+          # if (numspaces == 0 && numos == n)
+          #   board[index] = 'O'
+          li        $t5, 0
+          seq       $t6, $t2, $t5       # t6 = (numspaces == 1)
+          move      $t5, $s2
+          seq       $t7, $t3, $t5       # t7 = (numos == n - 1)
+
+          and       $t6, $t6, $t7       # t6 = t6 && t7
+
+          li        $t5, 1
+          beq       $t6, $t5, CHICKEN_DINNER_CHECKROWS_OUTERLOOP_EXIT
+
+          addiu     $t0, $t0, 1         # ++i
+
+          j CHICKEN_DINNER_CHECKROWS_OUTERLOOP
+
+CHICKEN_DINNER_CHECKROWS_OUTERLOOP_EXIT:
+          j   CHICKEN_DINNER_PRINT_WINNER
+
+#CHECKCOL===============================================================================
+#=======================================================================================
+# Check to see if there is a winning move for the AI
+# down columns i.e.
+#
+#   +--+--+--+
+#   |v |v | v|
+# v +--+--+--+
+#   |v |v | v|
+# v +--+--+--+
+#   |v |v | v|
+#   +--+--+--+
+#
+# Register Usage:
+#         t0 = i = 0
+#         t1 = j = 0
+#         t2 = numspaces = 0
+#         t3 = numos = 0
+#         t4 = index = -1
+#         t5 = (temporary)
+#         t6 = (temporary)
+#         t7 = (temporary)
+#         t8 = (temporary)
+# Pseudocode:
+#
+# numspaces = 0
+# numos = 0
+# index = -1
+# for (int i = 0; i < n; ++i) {
+#   for (int j = 0; j < n; ++j) {
+#     if (board[j * n + i] == 'X')
+#       numos++;
+#     if (board[j * n + i] == ' ') {
+#       numspaces++;
+#       index = i * n + i;
+#     }
+#   }
+#   if (numspaces == 1 && numos == n - 1) {
+#     board[index] = 'O';
+#     break;
+#   }
+# }
+CHICKEN_DINNER_CHECKCOL:
+          li        $t0, 0              # i = 0
+          li        $t1, 0              # j = 0
+
+CHICKEN_DINNER_CHECKCOL_OUTERLOOP:
+          beq       $t0, $s2, CHICKEN_DINNER_DIAGLEFT  # No winning move found.
+          li        $t1, 0                                  # j = 0
+          li        $t2, 0                                  # numspaces = 0
+          li        $t3, 0                                  # numos = 0
+          li        $t4, -1
+
+CHICKEN_DINNER_CHECKCOL_INNERLOOP:
+          beq       $t1, $s2, CHICKEN_DINNER_CHECKCOL_OUTERLOOP_BOTTOM
+
+          # if (board[i * n + j] == ' ')
+          #   ++numspaces;
+          mul       $t5, $t1, $s2       # t5 = j * n
+          add       $t5, $t5, $t0       # t5 = j * n + i
+          move      $t8, $t5            # t8 = t5
+          la        $t6, BOARD
+          addu      $t6, $t6, $t5
+          lb        $t5, 0($t6)         # t5 = board[j * n + i]
+
+          li        $t6, ' '
+          beq       $t5, $t6, CHICKEN_DINNER_CHECKCOL_INNERLOOP_IF
+
+          j         CHICKEN_DINNER_CHECKCOL_INNERLOOP_BOTTOM
+
+CHICKEN_DINNER_CHECKCOL_INNERLOOP_IF:
+          addiu     $t2, $t2, 1         # ++numspaces
+          move      $t4, $t8            # index = i * n + j
+
+CHICKEN_DINNER_CHECKCOL_INNERLOOP_BOTTOM:
+          # if (board[i * n + j] == 'O')
+          #   ++numspaces;
+          li        $t6, 'X'#$$$$$$$$$$$$$
+          seq       $t6, $t5, $t6       # t6 = (board[i * n + j] == ' ')
+          addu      $t3, $t3, $t6       # numos += t6
+
+          addiu     $t1, $t1, 1         # ++j
+
+          j CHICKEN_DINNER_CHECKCOL_INNERLOOP
+
+CHICKEN_DINNER_CHECKCOL_OUTERLOOP_BOTTOM:
+          # if (numspaces == 0 && numos == n)
+          #   board[index] = 'O'
+          li        $t5, 0
+          seq       $t6, $t2, $t5       # t6 = (numspaces == 1)
+          move      $t5, $s2
+          seq       $t7, $t3, $t5       # t7 = (numos == n - 1)
+
+          and       $t6, $t6, $t7       # t6 = t6 && t7
+
+          li        $t5, 1
+          beq       $t6, $t5, CHICKEN_DINNER_CHECKCOL_OUTERLOOP_EXIT
+
+          addiu     $t0, $t0, 1         # ++i
+
+          j CHICKEN_DINNER_CHECKCOL_OUTERLOOP
+
+CHICKEN_DINNER_CHECKCOL_OUTERLOOP_EXIT:
+          j         CHICKEN_DINNER_PRINT_WINNER
+
+CHICKEN_DINNER_DIAGLEFT:
+          li        $t0, 0    # i = 0
+          li        $t1, 0    # numspaces = 0
+          li        $t2, 0    # numos = 0
+          li        $t3, 0    # index = 0
+
+CHICKEN_DINNER_DIAGLEFT_LOOP:
+          beq       $t0, $s2, CHICKEN_DINNER_DIAGLEFT_CHECK
+
+          la        $t4, BOARD          # load address of board
+          mul       $t5, $t0, $s2
+          add       $t5, $t5, $t0
+          add       $t8, $t5, $t4
+          lb        $t4, 0($t8)
+
+          # Count an X if it is seen.
+          li        $t6, 'X'
+          seq       $t7, $t4, $t6
+          addu      $t2, $t2, $t7
+
+          li        $t6, ' '
+          beq       $t4, $t6, CHICKEN_DINNER_DIAGLEFT_LOOP_IF
+
+CHICKEN_DINNER_DIAGLEFT_LOOP_BOTTOM:
+          addiu     $t0, $t0, 1 	# ++i
+          j         CHICKEN_DINNER_DIAGLEFT_LOOP
+
+CHICKEN_DINNER_DIAGLEFT_CHECK:
+          move      $t6, $s2
+
+          seq       $t7, $t2, $t6       # t7 = (numos == n)
+
+          li        $t6, 0
+          seq       $t8, $t1, $t6       # t8 = (numspaces == 0)
+
+          and       $t7, $t7, $t8       # t7 = ((numos == n - 1) && (numspaces == 1))
+
+          li        $t6, 1
+          beq       $t7, $t6, CHICKEN_DINNER_DIAGLEFT_LOOP_EXIT
+
+          j         CHICKEN_DINNER_DIAGRIGHT
+
+CHICKEN_DINNER_DIAGLEFT_LOOP_IF:
+          addiu $t1, $t1, 1 # inc numspaces
+          move  $t3, $t5    # index = i * n + i
+
+          j 	CHICKEN_DINNER_DIAGLEFT_LOOP_BOTTOM
+
+CHICKEN_DINNER_DIAGLEFT_LOOP_EXIT:
+          j         CHICKEN_DINNER_PRINT_WINNER
+
+CHICKEN_DINNER_DIAGRIGHT:
+          li        $t0, 0              # i = 0
+          li        $t1, 0              # numspaces = 0
+          li        $t2, 0              # numos = 0
+          li        $t3, 0              # index = 0
+          addi      $t9, $s2, -1        # j = n - 1
+
+CHICKEN_DINNER_DIAGRIGHT_LOOP:
+          beq       $t0, $s2, CHICKEN_DINNER_DIAGRIGHT_CHECK
+
+          la        $t4, BOARD          # load address of board
+          add       $t5, $t9, $t4
+          lb        $t4, 0($t5)
+
+          # Count an X if it is seen.
+          li        $t6, 'X'
+          seq       $t7, $t4, $t6
+          addu      $t2, $t2, $t7
+
+          li        $t6, ' '
+          beq       $t4, $t6, CHICKEN_DINNER_DIAGRIGHT_LOOP_IF
+
+CHICKEN_DINNER_DIAGRIGHT_LOOP_BOTTOM:
+          addiu     $t0, $t0, 1 	# ++i
+          add       $t9, $t9, $s2       # j += n - 1
+          addi      $t9, $t9, -1
+          j         CHICKEN_DINNER_DIAGRIGHT_LOOP
+
+CHICKEN_DINNER_DIAGRIGHT_CHECK:
+          move      $t6, $s2
+
+          seq       $t7, $t2, $t6       # t7 = (numxs == n)
+
+          li        $t6, 0
+          seq       $t8, $t1, $t6       # t8 = (numspaces == 0)
+
+          and       $t7, $t7, $t8       # t7 = ((numos == n - 1) && (numspaces == 1))
+
+          li        $t6, 1
+          beq       $t7, $t6, CHICKEN_DINNER_DIAGRIGHT_LOOP_EXIT
+
+          j         GAMELOOP
+
+CHICKEN_DINNER_DIAGRIGHT_LOOP_IF:
+          addiu $t1, $t1, 1 # inc numspaces
+          move  $t3, $t9    # index = j
+
+          j 	CHICKEN_DINNER_DIAGRIGHT_LOOP_BOTTOM
+
+CHICKEN_DINNER_DIAGRIGHT_LOOP_EXIT:
+          move      $t0, $t3
+          j         CHICKEN_DINNER_PRINT_WINNER
+
+CHICKEN_DINNER_PRINT_WINNER:
+          move      $a0, $s2
+          jal       PRINTBOARD
+
+          la        $a0, NEWLINE
+          li        $v0, 4
+          syscall
+
+          li        $v0, 4
+          la        $a0, PLAYERWINMSG
+          syscall
+
+          j         EXIT
+
+#==============================================================================================
+#===============================================================================================
+#===============================================================================================
+
+AI_WIN:
+          move      $a0, $s2
+          jal       PRINTBOARD
+
+          la        $a0, NEWLINE
+          li        $v0, 4
+          syscall
+
+          li        $v0, 4
+          la        $a0, AIWONMSG
+          syscall
+
+          j         EXIT
+
 # for (int i = 0; i < n * n; ++i)
 #   if (board[i] == ' ')
 #     gameover = false;
@@ -740,4 +1470,6 @@ GREETING:           .asciiz "Let's play a game of Tic-Tac-Toe.\n"
 ENTERn:             .asciiz "Enter n: "
 FIRST:              .asciiz "I'll go first.\n"
 GAMEOVERMSG:        .asciiz "The game is over. It's a tie!"
+AIWONMSG:           .asciiz "I'm the winner!\n"
+PLAYERWINMSG:       .asciiz "You are the winner!\n"
 BOARD:              .byte 0
