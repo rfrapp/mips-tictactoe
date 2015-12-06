@@ -1058,8 +1058,6 @@ VALID_MOVE:
 
           addiu     $s3, $s3, 1         # turncount++
 GAMELOOP_BOTTOM:
-          li        $t0, 0              # i = 0
-          mul       $t1, $s2, $s2       # t1 = n * n
 
 #===============================================================================================
 #===============================================================================================
@@ -1367,7 +1365,7 @@ CHICKEN_DINNER_DIAGRIGHT_CHECK:
           li        $t6, 1
           beq       $t7, $t6, CHICKEN_DINNER_DIAGRIGHT_LOOP_EXIT
 
-          j         GAMELOOP
+          j         GAMEOVER
 
 CHICKEN_DINNER_DIAGRIGHT_LOOP_IF:
           addiu $t1, $t1, 1 # inc numspaces
@@ -1410,6 +1408,10 @@ AI_WIN:
           syscall
 
           j         EXIT
+
+GAMEOVER:
+          li        $t0, 0              # i = 0
+          mul       $t1, $s2, $s2       # t1 = n * n
 
 # for (int i = 0; i < n * n; ++i)
 #   if (board[i] == ' ')
